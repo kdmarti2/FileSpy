@@ -143,7 +143,7 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 			Data->Iopb->TargetFileObject->FileName.Buffer = reTarget.Buffer;
 			Data->Iopb->TargetFileObject->FileName.Length = reTarget.Length;
 			Data->Iopb->TargetFileObject->FileName.MaximumLength = reTarget.MaximumLength;
-
+//test
 			FltSetCallbackDataDirty(Data);
 			return TRUE;
 		}
