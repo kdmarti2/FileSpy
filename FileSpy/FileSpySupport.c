@@ -81,11 +81,13 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 	HANDLE FHANDLE;
 	IO_STATUS_BLOCK ioStatusBlock;
 	NTSTATUS status;
+	PFILE_OBJECT realFileObject;
 	InitializeObjectAttributes(&objATT, &nameInfo->Name, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 0, 0);
-	status = FltCreateFile(
+	status = FltCreateFileEx(
 		FltObjects->Filter,
 		FltObjects->Instance,
 		&FHANDLE,
+		&realFileObject,
 		FILE_READ_DATA,
 		&objATT,
 		&ioStatusBlock,
@@ -110,21 +112,22 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 		RtlCopyUnicodeString(&reTarget, &nameInfo->Name);
 		unicodePosCat(&reTarget, &newExt, reTarget.Length / 2);		
 		freeUnicodeString(&newExt);
-		HANDLE OUTHANDLE;
-		IO_STATUS_BLOCK ioStatBlock;
-		OBJECT_ATTRIBUTES objATT2;
-		InitializeObjectAttributes(&objATT2, &reTarget, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 0, 0);
+
+		HANDLE THANDLE;
+		IO_STATUS_BLOCK ioStatBlock2;
+		OBJECT_ATTRIBUTES objATT3;
+		InitializeObjectAttributes(&objATT3, &reTarget, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 0, 0);
 		status = FltCreateFile(
 			FltObjects->Filter,
 			FltObjects->Instance,
-			&OUTHANDLE,
+			&THANDLE,
 			FILE_READ_DATA | FILE_WRITE_DATA | DELETE,
-			&objATT2,
-			&ioStatBlock,
+			&objATT3,
+			&ioStatBlock2,
 			(PLARGE_INTEGER)NULL,
 			FILE_ATTRIBUTE_NORMAL,
 			FILE_SHARE_READ|FILE_SHARE_WRITE,
-			FILE_OPEN_IF, //test replace with overwrite
+			FILE_OPEN, //test replace with overwrite
 			0,
 			NULL,
 			0,
@@ -132,26 +135,85 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 		);
 		if (NT_SUCCESS(status))
 		{
-			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Redirect: %wZ\n", reTarget));
-			//copyhere
-			FltClose(OUTHANDLE);
-			Data->IoStatus.Information = IO_REPARSE;
-			Data->IoStatus.Status = STATUS_REPARSE;
-			Data->Iopb->TargetFileObject->RelatedFileObject = NULL;
-
-			ExFreePool(Data->Iopb->TargetFileObject->FileName.Buffer);
-			Data->Iopb->TargetFileObject->FileName.Buffer = reTarget.Buffer;
-			Data->Iopb->TargetFileObject->FileName.Length = reTarget.Length;
-			Data->Iopb->TargetFileObject->FileName.MaximumLength = reTarget.MaximumLength;
-//test
-			FltSetCallbackDataDirty(Data);
-			return TRUE;
+			FltClose(THANDLE);
+		} else {
+			HANDLE OUTHANDLE;
+			IO_STATUS_BLOCK ioStatBlock;
+			OBJECT_ATTRIBUTES objATT2;
+			PFILE_OBJECT shadowfile;
+			InitializeObjectAttributes(&objATT2, &reTarget, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 0, 0);
+			status = FltCreateFileEx(
+				FltObjects->Filter,
+				FltObjects->Instance,
+				&OUTHANDLE,
+				&shadowfile,
+				FILE_READ_DATA | FILE_WRITE_DATA | DELETE,
+				&objATT2,
+				&ioStatBlock,
+				(PLARGE_INTEGER)NULL,
+				FILE_ATTRIBUTE_NORMAL,
+				FILE_SHARE_READ | FILE_SHARE_WRITE,
+				FILE_OVERWRITE_IF, //test replace with overwrite
+				0,
+				NULL,
+				0,
+				IO_IGNORE_SHARE_ACCESS_CHECK
+			);
+			if (NT_SUCCESS(status))
+			{
+				unsigned char* buf = FltAllocatePoolAlignedWithTag(FltObjects->Instance, NonPagedPool, 1024, 'read');
+				LARGE_INTEGER Pos;
+				Pos.HighPart = 0;
+				Pos.LowPart = 0;
+				LARGE_INTEGER oldPos;
+				oldPos.HighPart = 0;
+				oldPos.LowPart = 0;
+				ULONG readBytes = 0;
+				do {
+					NTSTATUS s = STATUS_SUCCESS;
+					readBytes = 0;
+					s = FltReadFile(
+						FltObjects->Instance,
+						realFileObject,
+						&Pos,
+						1024,
+						buf,
+						FLTFL_IO_OPERATION_NON_CACHED,
+						&readBytes,
+						0,
+						0
+					);
+					if (!NT_SUCCESS(s))
+						break;
+					Pos.QuadPart += readBytes;
+					FltWriteFile(
+						FltObjects->Instance,
+						shadowfile,
+						&oldPos,
+						readBytes,
+						buf,
+						FLTFL_IO_OPERATION_NON_CACHED,
+						0,
+						0,
+						0
+					);
+					oldPos.QuadPart += readBytes;
+					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Read %ld readoffset: %ld writeoffset: %ld\n", readBytes,Pos.LowPart,oldPos.LowPart));
+				} while (readBytes);
+				FltFreePoolAlignedWithTag(FltObjects->Instance, buf, 'read');
+				FltClose(OUTHANDLE);
+			}
 		}
-		else {
-			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Faild to create: %wZ\n", reTarget));
-		}
+		Data->IoStatus.Information = IO_REPARSE;
+		Data->IoStatus.Status = STATUS_REPARSE;
+		Data->Iopb->TargetFileObject->RelatedFileObject = NULL;
+		ExFreePool(Data->Iopb->TargetFileObject->FileName.Buffer);
+		Data->Iopb->TargetFileObject->FileName.Buffer = reTarget.Buffer;
+		Data->Iopb->TargetFileObject->FileName.Length = reTarget.Length;
+		Data->Iopb->TargetFileObject->FileName.MaximumLength = reTarget.MaximumLength;
+		FltSetCallbackDataDirty(Data);
 		FltClose(FHANDLE);
-		return FALSE;
+		return TRUE;
 	}
 
 }
