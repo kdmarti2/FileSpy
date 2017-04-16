@@ -30,6 +30,9 @@
     <ClCompile Include="FileSpySupport.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ProcTrace.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FileSpy.rc">
@@ -41,6 +44,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FileSpy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcTrace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

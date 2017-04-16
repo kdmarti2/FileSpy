@@ -1,5 +1,6 @@
 #include "FileSpy.h"
 #include "FileSpySupport.h"
+#include "ProcTrace.h"
 
 static UNICODE_STRING DirProtect = RTL_CONSTANT_STRING(L"\\Users\\WDKRemoteUser\\Documents\\");
 wchar_t* wdirprotect = L"\\??\\C:\\Users\\WDKRemoteUser\\Documents\\";
@@ -90,10 +91,17 @@ DriverEntry(
 
 	if (NT_SUCCESS(status)) {
 		status = FltStartFiltering(gFilterHandle);
-
 		if (!NT_SUCCESS(status)) {
 
 			FltUnregisterFilter(gFilterHandle);
+			return status;
+		}
+		status = PsSetCreateProcessNotifyRoutineEx(&CreateProcessNotifyEx, FALSE);
+		if (!NT_SUCCESS(status))
+		{
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "failed to register proctrace\n"));
+			FltUnregisterFilter(gFilterHandle);
+			return status;
 		}
 	}
 
@@ -113,7 +121,7 @@ FileSpyUnload(
 		("FileSpy!FileSpyUnload: Entered\n"));
 
 	FltUnregisterFilter(gFilterHandle);
-
+	PsSetCreateProcessNotifyRoutineEx(&CreateProcessNotifyEx, TRUE);
 	return STATUS_SUCCESS;
 }
 FileSpyPreSetInfo(
