@@ -1,7 +1,6 @@
 #include "FileSpy.h"
 #include "FileSpySupport.h"
 
-
 static UNICODE_STRING DirProtect = RTL_CONSTANT_STRING(L"\\Users\\WDKRemoteUser\\Documents\\");
 wchar_t* wdirprotect = L"\\??\\C:\\Users\\WDKRemoteUser\\Documents\\";
 wchar_t* wbin = L"\\??\\C:\\$RECYCLE.BIN\\";
@@ -136,11 +135,14 @@ FileSpyPreSetInfo(
 
 		return FLT_PREOP_SUCCESS_NO_CALLBACK;
 	}
+	if (processWhiteList(Data))
+	{
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
 	//need to test if the rename is going to be in the destination of just ioredirect it.
 	if (Data->Iopb->Parameters.SetFileInformation.FileInformationClass == FileRenameInformation)
 	{
 		PFILE_RENAME_INFORMATION fri = (PFILE_RENAME_INFORMATION)Data->Iopb->Parameters.SetFileInformation.InfoBuffer;
-		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Compared against %ws\n", fri->FileName));
 		if (WCStrncmp(fri->FileName, wdirprotect, 37))
 		{
 			//This is when the file is going to be overwritten through the rename process of either copy/move for now it may be just denied its accesss
@@ -229,6 +231,10 @@ FileSpyPreCreate (
 
 		return FLT_PREOP_SUCCESS_NO_CALLBACK;
 	}
+	if (processWhiteList(Data))
+	{
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
 	//dont use FLT_FILE_NAME_NORMALIZED its slow as fuck for pre_create
 	FltGetFileNameInformation(Data, FLT_FILE_NAME_OPENED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
 	FltParseFileNameInformation(nameInfo);
@@ -260,7 +266,8 @@ FileSpyPreCreate (
 	//make sure the request is in our protection directory
 	if (UStrncmp(&DirProtect, &nameInfo->ParentDir,0))
 	{
-		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "info! %wZ dir %wZ %x\n", nameInfo->Name, nameInfo->ParentDir, Data->Iopb->Parameters.Create.Options));
+		processWhiteList(Data);
+		//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "info! %wZ dir %wZ %x\n", nameInfo->Name, nameInfo->ParentDir, Data->Iopb->Parameters.Create.Options));
 		ULONG uDisposition = Data->Iopb->Parameters.Create.Options >> 24 & 0xFF;
 		//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "mask:%d Test %d\n", Data->Iopb->Parameters.Create.Options,nameInfo->Name));
 		if (FlagOn(Data->Iopb->Parameters.Create.Options, FILE_DELETE_ON_CLOSE))

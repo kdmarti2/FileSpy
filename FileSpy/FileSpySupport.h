@@ -4,7 +4,9 @@
 
 #include <fltKernel.h>
 #include <wdm.h>
+#define WHITELISTSIZE 4
 
+BOOLEAN processWhiteList(PFLT_CALLBACK_DATA Data);
 BOOLEAN UStrncmp(PUNICODE_STRING, PUNICODE_STRING,USHORT POS);
 BOOLEAN WCStrncmp(wchar_t* dst, wchar_t* src, unsigned int len);
 

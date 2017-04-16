@@ -1,5 +1,26 @@
 #include "FileSpySupport.h"
-
+UNICODE_STRING plist[] = {
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\explorer.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\SearchProtocolHost.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\SearchIndexer.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\SearchFilterHost.exe")
+};
+//https://aonprog.wordpress.com/2009/02/16/process-name-and-id-in-file-filter-driver-callbacks/
+BOOLEAN processWhiteList(PFLT_CALLBACK_DATA Data) {
+	//GetProcessImageFileName
+	PEPROCESS objCurProcess = IoThreadToProcess(Data->Thread);
+	PUNICODE_STRING ProcName;
+	SeLocateProcessImageName(objCurProcess,&ProcName);
+	unsigned int i = 0;
+	for (i = 0;i < WHITELISTSIZE;i++)
+	{
+		if(RtlEqualUnicodeString(ProcName, &plist[i], TRUE))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
 BOOLEAN UStrncmp(PUNICODE_STRING dst, PUNICODE_STRING src,USHORT POS)
 {
 	USHORT Len = 0;
@@ -54,6 +75,8 @@ void unicodePosCat(PUNICODE_STRING dst, PUNICODE_STRING src, USHORT start)
 	}
 	dst->Length += src->Length;
 }
+
+//https://aonprog.wordpress.com/2009/02/16/process-name-and-id-in-file-filter-driver-callbacks/
 void generateExt(PUNICODE_STRING newExt, PFLT_CALLBACK_DATA Data) {
 	UNICODE_STRING PID;
 
@@ -198,7 +221,7 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 						0
 					);
 					oldPos.QuadPart += readBytes;
-					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Read %ld readoffset: %ld writeoffset: %ld\n", readBytes,Pos.LowPart,oldPos.LowPart));
+//					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Read %ld readoffset: %ld writeoffset: %ld\n", readBytes,Pos.LowPart,oldPos.LowPart));
 				} while (readBytes);
 				FltFreePoolAlignedWithTag(FltObjects->Instance, buf, 'read');
 				FltClose(OUTHANDLE);
