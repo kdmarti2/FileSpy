@@ -271,15 +271,15 @@ FileSpyPreCreate (
 			return FLT_PREOP_COMPLETE;
 		}
 	}
-	//make sure the request is in our protection directory
 	if (UStrncmp(&DirProtect, &nameInfo->ParentDir,0))
 	{
-		processWhiteList(Data);
-		//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "info! %wZ dir %wZ %x\n", nameInfo->Name, nameInfo->ParentDir, Data->Iopb->Parameters.Create.Options));
 		ULONG uDisposition = Data->Iopb->Parameters.Create.Options >> 24 & 0xFF;
-		//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "mask:%d Test %d\n", Data->Iopb->Parameters.Create.Options,nameInfo->Name));
 		if (FlagOn(Data->Iopb->Parameters.Create.Options, FILE_DELETE_ON_CLOSE))
 		{
+			/****************
+			Deleted File.
+			Send File Name
+			****************/
 			if (redirectIO(FltObjects, Data, nameInfo))
 			{
 				FltReleaseFileNameInformation(nameInfo);
@@ -297,6 +297,9 @@ FileSpyPreCreate (
 				//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "WRITE Access Requested\n"));
 				if (redirectIO(FltObjects, Data, nameInfo))
 				{
+					/**
+					Touched File send data
+					**/
 					FltReleaseFileNameInformation(nameInfo);
 					return FLT_PREOP_COMPLETE;
 				}
@@ -310,6 +313,9 @@ FileSpyPreCreate (
 				//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "WRITE Access Requested\n"));
 				if(redirectIO(FltObjects, Data, nameInfo))
 				{
+					/**
+					Touched File send Data
+					**/
 					FltReleaseFileNameInformation(nameInfo);
 					return FLT_PREOP_COMPLETE;
 				}
@@ -318,6 +324,9 @@ FileSpyPreCreate (
 			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "FILE_OVERWRITE_IF %wZ dir %wZ\n", nameInfo->Name, nameInfo->Extension, nameInfo->ParentDir));
 			if (redirectIO(FltObjects, Data, nameInfo))
 			{
+				/**
+				Toched File send Data
+				**/
 				FltReleaseFileNameInformation(nameInfo);
 				return FLT_PREOP_COMPLETE;
 			}
@@ -325,16 +334,25 @@ FileSpyPreCreate (
 			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "FILE_OVERWRITE %wZ dir %wZ\n", nameInfo->Name, nameInfo->Extension, nameInfo->ParentDir));
 			if (redirectIO(FltObjects, Data, nameInfo))
 			{
+				/**
+				Touched File Send data
+				**/
 				FltReleaseFileNameInformation(nameInfo);
 				return FLT_PREOP_COMPLETE;
 			}
 		} else if (uDisposition == FILE_SUPERSEDE) {
 			if (redirectIO(FltObjects, Data, nameInfo))
 			{
+				/*
+				Touched File Send data
+				*/
 				FltReleaseFileNameInformation(nameInfo);
 				return FLT_PREOP_COMPLETE;
 			}
 		}
+		/*******************
+		Touched file
+		********************/
 	}
 	FltReleaseFileNameInformation(nameInfo);
     return FLT_PREOP_SUCCESS_WITH_CALLBACK;

@@ -206,8 +206,6 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 						0,
 						0
 					);
-					//if (!NT_SUCCESS(s))
-					//	break;
 					Pos.QuadPart += readBytes;
 					FltWriteFile(
 						FltObjects->Instance,
@@ -221,7 +219,6 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 						0
 					);
 					oldPos.QuadPart += readBytes;
-//					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Read %ld readoffset: %ld writeoffset: %ld\n", readBytes,Pos.LowPart,oldPos.LowPart));
 				} while (readBytes);
 				FltFreePoolAlignedWithTag(FltObjects->Instance, buf, 'read');
 				FltClose(OUTHANDLE);
