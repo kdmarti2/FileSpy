@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FILE_SPY_MINIFILTER_H
 #define FILE_SPY_MINIFILTER_H
 
@@ -76,6 +77,19 @@ FileSpyPostCreate(
 	_In_opt_ PVOID CompletionContext,
 	_In_ FLT_POST_OPERATION_FLAGS Flags
 );
+FLT_PREOP_CALLBACK_STATUS
+FileSpyPreSetInfo(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_Flt_CompletionContext_Outptr_ PVOID *CompletionContext
+);
+FLT_POSTOP_CALLBACK_STATUS
+FileSpyPostSetInfo(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_In_opt_ PVOID CompletionContext,
+	_In_ FLT_POST_OPERATION_FLAGS Flags
+);
 VOID
 FileSpyOperationStatusCallback(
 	_In_ PCFLT_RELATED_OBJECTS FltObjects,
@@ -112,6 +126,10 @@ CONST FLT_OPERATION_REGISTRATION Callbacks[] = {
 	0,
 	FileSpyPreCreate,
 	FileSpyPostCreate},
+	{IRP_MJ_SET_INFORMATION,
+	0,
+	FileSpyPreSetInfo,
+	FileSpyPostSetInfo},
 	{ IRP_MJ_OPERATION_END }
 };
 CONST FLT_REGISTRATION FilterRegistration = {
@@ -135,5 +153,4 @@ CONST FLT_REGISTRATION FilterRegistration = {
 	NULL                                //  NormalizeNameComponent
 
 };
-
 #endif

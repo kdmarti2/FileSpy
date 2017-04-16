@@ -183,8 +183,8 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 						0,
 						0
 					);
-					if (!NT_SUCCESS(s))
-						break;
+					//if (!NT_SUCCESS(s))
+					//	break;
 					Pos.QuadPart += readBytes;
 					FltWriteFile(
 						FltObjects->Instance,
@@ -217,3 +217,46 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 	}
 
 }
+BOOLEAN WCStrncmp(wchar_t* dst, wchar_t* src, unsigned int len)
+{
+	unsigned int i = 0;
+	for (i = 0;i < len;i++)
+	{
+		if (dst[i] != src[i])
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+/*
+BOOLEAN redirectRenameIO(PFLT_CALLBACK_DATA Data)
+{
+	/*UNICODE_STRING newExt;
+	generateExt(&newExt, Data);
+	PFILE_RENAME_INFORMATION fri = (PFILE_RENAME_INFORMATION)Data->Iopb->Parameters.SetFileInformation.InfoBuffer;
+	
+	wchar_t * newpath = ExAllocatePool(NonPagedPool, fri->FileNameLength + newExt.Length);
+	RtlCopyMemory(newpath, fri->FileName, fri->FileNameLength);
+	RtlCopyMemory(&newpath[fri->FileNameLength/2], newExt.Buffer, newExt.Length);
+
+	PFILE_RENAME_INFORMATION newFri = ExAllocatePool(NonPagedPool, sizeof(FILE_RENAME_INFORMATION));
+
+	RtlCopyMemory(newFri->FileName, newpath, fri->FileNameLength + newExt.Length);
+	newFri->FileNameLength = fri->FileNameLength + newExt.Length;
+	newFri->Flags = fri->Flags;
+	newFri->ReplaceIfExists = fri->ReplaceIfExists;
+	newFri->RootDirectory = fri->RootDirectory;
+
+	Data->Iopb->Parameters.SetFileInformation.InfoBuffer = newFri;
+	ExFreePool(fri);
+	ExFreePool(newpath);
+
+	Data->IoStatus.Information = IO_REPARSE;
+	Data->IoStatus.Status = STATUS_REPARSE;
+	FltSetCallbackDataDirty(Data);
+
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, " new path %ws :::: ext %wZ\n", newpath,newExt));
+	return TRUE;
+}
+*/
