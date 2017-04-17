@@ -35,6 +35,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ComIface.c" />
+    <ClCompile Include="DecisionTree.c" />
     <ClCompile Include="FileSpySupport.c" />
     <ClCompile Include="ProcTrace.c" />
     <ResourceCompile Include="FileSpy.rc" />
@@ -186,6 +188,9 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ComIface.h" />
+    <ClInclude Include="DecisionTree.h" />
+    <ClInclude Include="DecisionTreeGlobal.h" />
     <ClInclude Include="FileSpy.h" />
     <ClInclude Include="FileSpySupport.h" />
     <ClInclude Include="ProcTrace.h" />

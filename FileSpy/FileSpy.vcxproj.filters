@@ -33,6 +33,12 @@
     <ClCompile Include="ProcTrace.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ComIface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DecisionTree.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FileSpy.rc">
@@ -47,6 +53,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ProcTrace.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComIface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DecisionTreeGlobal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DecisionTree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

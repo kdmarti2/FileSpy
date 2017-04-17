@@ -36,12 +36,15 @@ VOID CreateProcessNotifyEx(
 		//process created
 		if (procNameWhiteList(ParentProcName)) {
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "created (WHITELIST) ---> child:%wZ: %ld\n", ProcName, ProcessId));
+			recordProcess(0, (unsigned long long)ProcessId);
 		}
 		else {
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "created parent: %wZ:%ld ---> child:%wZ: %ld\n", ParentProcName, CreateInfo->ParentProcessId, ProcName, ProcessId));
+			recordProcess((unsigned long long)CreateInfo->ParentProcessId, (unsigned long long)ProcessId);
 		}
 	}
 	else {
 		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Exit %wZ: %ld\n", ProcName,ProcessId));
+		deleteProcess((unsigned long long)ProcessId);//pretty much will trigger the whole minifilter
 	}
 }

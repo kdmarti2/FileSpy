@@ -1,6 +1,7 @@
 #include "FileSpy.h"
 #include "FileSpySupport.h"
 #include "ProcTrace.h"
+#include "ComIface.h"
 
 static UNICODE_STRING DirProtect = RTL_CONSTANT_STRING(L"\\Users\\WDKRemoteUser\\Documents\\");
 wchar_t* wdirprotect = L"\\??\\C:\\Users\\WDKRemoteUser\\Documents\\";
@@ -88,7 +89,7 @@ DriverEntry(
 		&gFilterHandle);
 
 	FLT_ASSERT(NT_SUCCESS(status));
-
+	InitComIface();
 	if (NT_SUCCESS(status)) {
 		status = FltStartFiltering(gFilterHandle);
 		if (!NT_SUCCESS(status)) {
@@ -104,7 +105,6 @@ DriverEntry(
 			return status;
 		}
 	}
-
 	return status;
 }
 

@@ -11,6 +11,7 @@ huge amount of guidance from this cite
 #include <fltKernel.h>
 #include <wdm.h>
 #include <Ntddk.h>
+#include "ComIface.h"
 
 BOOLEAN procNameWhiteList(PUNICODE_STRING Name);
 
