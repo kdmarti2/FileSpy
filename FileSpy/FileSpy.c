@@ -1,11 +1,5 @@
 #include "FileSpy.h"
-#include "FileSpySupport.h"
-#include "ProcTrace.h"
-#include "ComIface.h"
 
-static UNICODE_STRING DirProtect = RTL_CONSTANT_STRING(L"\\Users\\WDKRemoteUser\\Documents\\");
-wchar_t* wdirprotect = L"\\??\\C:\\Users\\WDKRemoteUser\\Documents\\";
-wchar_t* wbin = L"\\??\\C:\\$RECYCLE.BIN\\";
 
 NTSTATUS
 FileSpyInstanceSetup (
@@ -124,6 +118,12 @@ FileSpyUnload(
 	PsSetCreateProcessNotifyRoutineEx(&CreateProcessNotifyEx, TRUE);
 	return STATUS_SUCCESS;
 }
+/*
+
+
+MIGHT BE REMOVED as it holds no need for it
+
+*/
 FileSpyPreSetInfo(
 	_Inout_ PFLT_CALLBACK_DATA Data,
 	_In_ PCFLT_RELATED_OBJECTS FltObjects,
@@ -169,6 +169,7 @@ FileSpyPreSetInfo(
 		{
 			if (UStrncmp(&DirProtect, &nameInfo->ParentDir, 0))
 			{
+				KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "setInfo %ws\n %ld\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
 				//https://www.osronline.com/showthread.cfm?link=226825
 				if (Data->Iopb->Parameters.SetFileInformation.FileInformationClass == FileDispositionInformation &&
 					((PFILE_DISPOSITION_INFORMATION)Data->Iopb->Parameters.SetFileInformation.InfoBuffer)->DeleteFile)
@@ -227,7 +228,16 @@ FileSpyPreCreate (
 	PFLT_FILE_NAME_INFORMATION nameInfo;
 
     UNREFERENCED_PARAMETER( CompletionContext );
+	/*
+		CHECK TO SEE IF I NEED TO DO an IO HIGHJACK HERE
+	*/
 
+		//HOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOK
+
+
+	/*
+		CHECK TO SEE IF I NEED TO DO an IO HIGHJACK HERE
+	*/
 	/*
 		Needs to be a function called isDirecotyr
 	*/
@@ -244,7 +254,13 @@ FileSpyPreCreate (
 		return FLT_PREOP_SUCCESS_NO_CALLBACK;
 	}
 	//dont use FLT_FILE_NAME_NORMALIZED its slow as fuck for pre_create
-	FltGetFileNameInformation(Data, FLT_FILE_NAME_OPENED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
+	NTSTATUS status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
+	if (!NT_SUCCESS(status))
+	{
+	//	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "potential file tunnel\n"));
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
+
 	FltParseFileNameInformation(nameInfo);
 
 	//	Need to denied access to shadow files pretty much we will denied them
@@ -273,86 +289,11 @@ FileSpyPreCreate (
 	}
 	if (UStrncmp(&DirProtect, &nameInfo->ParentDir,0))
 	{
-		ULONG uDisposition = Data->Iopb->Parameters.Create.Options >> 24 & 0xFF;
-		if (FlagOn(Data->Iopb->Parameters.Create.Options, FILE_DELETE_ON_CLOSE))
+		if (redirectIO(FltObjects, Data, nameInfo))
 		{
-			/****************
-			Deleted File.
-			Send File Name
-			****************/
-			if (redirectIO(FltObjects, Data, nameInfo))
-			{
-				FltReleaseFileNameInformation(nameInfo);
-				return FLT_PREOP_COMPLETE;
-			}
-		} else if (uDisposition == FILE_OPEN)
-		{
-
-			//Write had been detected, this allows the program to potentially change file
-			if (FlagOn(Data->Iopb->Parameters.Create.SecurityContext->DesiredAccess, FILE_GENERIC_WRITE)
-				||
-				FlagOn(Data->Iopb->Parameters.Create.SecurityContext->DesiredAccess, STANDARD_RIGHTS_WRITE)
-				)
-			{
-				//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "WRITE Access Requested\n"));
-				if (redirectIO(FltObjects, Data, nameInfo))
-				{
-					/**
-					Touched File send data
-					**/
-					FltReleaseFileNameInformation(nameInfo);
-					return FLT_PREOP_COMPLETE;
-				}
-			}
-		} else if (uDisposition == FILE_OPEN_IF) {
-			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "FILE_OPEN_IF %wZ dir %wZ\n", nameInfo->Name, nameInfo->Extension, nameInfo->ParentDir));
-			if (FlagOn(Data->Iopb->Parameters.Create.SecurityContext->DesiredAccess, FILE_GENERIC_WRITE)
-				||
-				FlagOn(Data->Iopb->Parameters.Create.SecurityContext->DesiredAccess, STANDARD_RIGHTS_WRITE))
-			{
-				//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "WRITE Access Requested\n"));
-				if(redirectIO(FltObjects, Data, nameInfo))
-				{
-					/**
-					Touched File send Data
-					**/
-					FltReleaseFileNameInformation(nameInfo);
-					return FLT_PREOP_COMPLETE;
-				}
-			}
-		} else if (uDisposition == FILE_OVERWRITE_IF) {
-			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "FILE_OVERWRITE_IF %wZ dir %wZ\n", nameInfo->Name, nameInfo->Extension, nameInfo->ParentDir));
-			if (redirectIO(FltObjects, Data, nameInfo))
-			{
-				/**
-				Toched File send Data
-				**/
-				FltReleaseFileNameInformation(nameInfo);
-				return FLT_PREOP_COMPLETE;
-			}
-		} else if (uDisposition == FILE_OVERWRITE) {
-			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "FILE_OVERWRITE %wZ dir %wZ\n", nameInfo->Name, nameInfo->Extension, nameInfo->ParentDir));
-			if (redirectIO(FltObjects, Data, nameInfo))
-			{
-				/**
-				Touched File Send data
-				**/
-				FltReleaseFileNameInformation(nameInfo);
-				return FLT_PREOP_COMPLETE;
-			}
-		} else if (uDisposition == FILE_SUPERSEDE) {
-			if (redirectIO(FltObjects, Data, nameInfo))
-			{
-				/*
-				Touched File Send data
-				*/
-				FltReleaseFileNameInformation(nameInfo);
-				return FLT_PREOP_COMPLETE;
-			}
+			FltReleaseFileNameInformation(nameInfo);
+			return FLT_PREOP_COMPLETE;
 		}
-		/*******************
-		Touched file
-		********************/
 	}
 	FltReleaseFileNameInformation(nameInfo);
     return FLT_PREOP_SUCCESS_WITH_CALLBACK;

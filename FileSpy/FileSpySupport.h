@@ -4,7 +4,11 @@
 
 #include <fltKernel.h>
 #include <wdm.h>
+
+#include "ComIface.h"
+
 #define WHITELISTSIZE 4
+
 
 BOOLEAN processWhiteList(PFLT_CALLBACK_DATA Data);
 BOOLEAN UStrncmp(PUNICODE_STRING, PUNICODE_STRING,USHORT POS);

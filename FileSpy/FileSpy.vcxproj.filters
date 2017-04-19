@@ -39,6 +39,9 @@
     <ClCompile Include="DecisionTree.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="IOheuristics.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FileSpy.rc">
@@ -62,6 +65,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DecisionTree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IOheuristics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

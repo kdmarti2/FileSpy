@@ -9,7 +9,17 @@
 #include <wdm.h>
 #include <ntifs.h>
 
+#include "FileSpy.h"
+#include "FileSpySupport.h"
+#include "ProcTrace.h"
+#include "ComIface.h"
+
 #pragma prefast(disable:__WARNING_ENCODE_MEMBER_FUNCTION_POINTER, "Not valid for kernel mode drivers")
+
+static UNICODE_STRING DirProtect = RTL_CONSTANT_STRING(L"\\Users\\WDKRemoteUser\\Documents\\");
+wchar_t* wdirprotect = L"\\??\\C:\\Users\\WDKRemoteUser\\Documents\\";
+wchar_t* wbin = L"\\??\\C:\\$RECYCLE.BIN\\";
+
 
 PFLT_FILTER gFilterHandle;
 ULONG_PTR OperationStatusCtx = 1;

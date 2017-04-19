@@ -38,6 +38,7 @@
     <ClCompile Include="ComIface.c" />
     <ClCompile Include="DecisionTree.c" />
     <ClCompile Include="FileSpySupport.c" />
+    <ClCompile Include="IOheuristics.c" />
     <ClCompile Include="ProcTrace.c" />
     <ResourceCompile Include="FileSpy.rc" />
     <ClCompile Include="FileSpy.c" />
@@ -193,6 +194,7 @@
     <ClInclude Include="DecisionTreeGlobal.h" />
     <ClInclude Include="FileSpy.h" />
     <ClInclude Include="FileSpySupport.h" />
+    <ClInclude Include="IOheuristics.h" />
     <ClInclude Include="ProcTrace.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

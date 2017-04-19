@@ -45,7 +45,6 @@ void addFirstSlist(snode** head, snode* node);
 void addLastSlist(snode** head, snode* node);
 snode* removeSlist(snode** head, snode* node);
 
-
 #endif
 
 

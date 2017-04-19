@@ -1,5 +1,5 @@
 #include "FileSpySupport.h"
-UNICODE_STRING plist[] = {
+UNICODE_STRING proclist[] = {
 	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\explorer.exe"),
 	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\SearchProtocolHost.exe"),
 	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\SearchIndexer.exe"),
@@ -14,7 +14,7 @@ BOOLEAN processWhiteList(PFLT_CALLBACK_DATA Data) {
 	unsigned int i = 0;
 	for (i = 0;i < WHITELISTSIZE;i++)
 	{
-		if(RtlEqualUnicodeString(ProcName, &plist[i], TRUE))
+		if(RtlEqualUnicodeString(ProcName, &proclist[i], TRUE))
 		{
 			return TRUE;
 		}
@@ -224,6 +224,15 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 				FltClose(OUTHANDLE);
 			}
 		}
+		PEPROCESS objCurProcess = IoThreadToProcess(Data->Thread);
+		unsigned long long PID = (unsigned long long)PsGetProcessId(objCurProcess);
+		/**
+			recording IO here
+		**/
+		recordIO(PID,&nameInfo->Name, &reTarget);
+		/**
+			recording IO here
+		**/
 		Data->IoStatus.Information = IO_REPARSE;
 		Data->IoStatus.Status = STATUS_REPARSE;
 		Data->Iopb->TargetFileObject->RelatedFileObject = NULL;
