@@ -12,6 +12,7 @@ BOOLEAN processWhiteList(PFLT_CALLBACK_DATA Data) {
 	PUNICODE_STRING ProcName;
 	SeLocateProcessImageName(objCurProcess,&ProcName);
 	unsigned int i = 0;
+	//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Proccess, %wZ...\n", *ProcName));
 	for (i = 0;i < WHITELISTSIZE;i++)
 	{
 		if(RtlEqualUnicodeString(ProcName, &proclist[i], TRUE))
@@ -222,17 +223,18 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 				} while (readBytes);
 				FltFreePoolAlignedWithTag(FltObjects->Instance, buf, 'read');
 				FltClose(OUTHANDLE);
+				PEPROCESS objCurProcess = IoThreadToProcess(Data->Thread);
+				unsigned long long PID = (unsigned long long)PsGetProcessId(objCurProcess);
+				KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Process Node not found creating, %ld creating...\n", PID));
+				if (PID != 4 && PID != 0)
+					recordIO(PID, &nameInfo->Name, &reTarget);
+				/**
+				recording IO here
+				**/
 			}
 		}
-		PEPROCESS objCurProcess = IoThreadToProcess(Data->Thread);
-		unsigned long long PID = (unsigned long long)PsGetProcessId(objCurProcess);
-		/**
-			recording IO here
-		**/
-		recordIO(PID,&nameInfo->Name, &reTarget);
-		/**
-			recording IO here
-		**/
+		//bug fix that system becomes the main parent
+
 		Data->IoStatus.Information = IO_REPARSE;
 		Data->IoStatus.Status = STATUS_REPARSE;
 		Data->Iopb->TargetFileObject->RelatedFileObject = NULL;

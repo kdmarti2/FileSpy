@@ -170,6 +170,7 @@ The litteral main trigger to this whole program
 A very important function that triggers the heuristics and decision making of the minifilter
 this will determine the very success and failure of this defense
 Simple test this needs to be fixed to handle an actual process close
+This CODE IS BUGGEDDDD
 */
 void deleteProcess(unsigned long long cPID)
 {
@@ -186,7 +187,7 @@ void deleteProcess(unsigned long long cPID)
 	//I have a child mark this parent as a ghost, move all of its states up to the most ancesteral non ghost
 	if (c->child)
 	{
-		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "I have a child %d\n", c->PID));
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "del: I have a child %d\n", c->PID));
 		c->ghost = 1;
 		Procmon* p = c->parent;
 		if (!p) 
@@ -199,13 +200,14 @@ void deleteProcess(unsigned long long cPID)
 				np = p;
 				p = p->parent;
 			} while (p);
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "del: %ld inherits ghost files from %ld\n", np->PID,c->PID));
 			inheritProcessNode(np, c);
 			//find the most last anscestor
 		}
 		addSortSlist((Idsnode**)&ProcessList, (Idsnode*)c); // add it back tp the list
 	}
 	else {
-		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "I do not have a child %d\n", c->PID));
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "del: I do not have a child %d\n", c->PID));
 		//do I have a parent?
 		Procmon* p = c->parent;
 		Procmon* np = p;
@@ -219,6 +221,7 @@ void deleteProcess(unsigned long long cPID)
 		{
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "oldest parent node %d\n", np->PID));
 			//collapse merge and free the child linkage
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "del: %ld inherits files from %ld\n", np->PID, c->PID));
 			inheritProcessNode(np, c);
 			p = c->parent;
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "parent node %d\n", p->PID));
@@ -228,22 +231,33 @@ void deleteProcess(unsigned long long cPID)
 				ExFreePool(cpnt);
 			}
 			ExFreePool(c);
-			/*Remove ghost structures if has no child and no IO*/
-			if (!p->child && p->ghost)
+			//bugged
+			while (p)
 			{
-				
-				if (!p->IO)
+				np = p->parent;
+				if (!p->child && p->ghost)
 				{
-					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "ghost node removed %d\n", p->PID));
-					removeSortSlist((Idsnode**)&ProcessList, p->PID);
-					ExFreePool(p);
-				} else {
-					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "ghost node removed has files %d\n", p->PID));
-					removeSortSlist((Idsnode**)&ProcessList, p->PID);
-					KeReleaseGuardedMutex(&DTMutex);
-					putProcess(p);
-					return;
+					if (!p->IO)
+					{
+						KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "ghost node removed %d\n", p->PID));
+						removeSortSlist((Idsnode**)&ProcessList, p->PID);
+						ExFreePool(p);
+					}
+					else {
+						KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "ghost node removed has files %d\n", p->PID));
+						removeSortSlist((Idsnode**)&ProcessList, p->PID);
+						putProcess(p);
+					}
+					if (np) {
+						Childproc* childpnt = (Childproc*)removeSortSlist((Idsnode**)&np->child, p->PID);
+						if (childpnt)
+						{
+							ExFreePool(childpnt); //releasing the child pointer
+						}
+					}
+
 				}
+				p = np;
 			}
 		} else { //child has no parent
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "no parent node %d\n", c->PID));

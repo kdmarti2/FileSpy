@@ -3,7 +3,7 @@
 #define PROC_TRACE_H
 
 
-#define PROCWLISTSIZE 4
+#define PROCWLISTSIZE 8
 /**
 huge amount of guidance from this cite
 */

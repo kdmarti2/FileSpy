@@ -290,6 +290,7 @@ FileSpyPreCreate (
 	}
 	if (UStrncmp(&DirProtect, &nameInfo->ParentDir,0))
 	{
+		//need to re
 		if (redirectIO(FltObjects, Data, nameInfo))
 		{
 			FltReleaseFileNameInformation(nameInfo);

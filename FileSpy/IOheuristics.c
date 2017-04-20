@@ -25,7 +25,21 @@ void IOhook(PCFLT_RELATED_OBJECTS FltObjects)
 		KeReleaseGuardedMutex(&IOMutex);
 		return;
 	}
-	//make the changes here
+	IOtrace* IO = (IOtrace*)removeSlist((snode**)&IOact,(snode*)IOact);
+	while (IO)
+	{
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "change real File %wZ\n", *IO->realFile));
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "change shdw File %wZ\n", *IO->shadowFile));
+
+		ExFreePool(IO->realFile->Buffer);
+		ExFreePool(IO->shadowFile->Buffer);
+		ExFreePool(IO->realFile);
+		ExFreePool(IO->shadowFile);
+		ExFreePool(IO);
+
+		IO = (IOtrace*)removeSlist((snode**)&IOact, (snode*)IOact);
+	}
+
 	KeReleaseGuardedMutex(&IOMutex);
 	return;
 }
@@ -41,16 +55,38 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 		return;
 	}
 	//do IO heuristics
-	Procmon* pnt = (Procmon*)removeSlist((snode**)&Pact, (snode*)Pact);
-	if (!pnt)
+	Procmon* proc = (Procmon*)removeSlist((snode**)&Pact, (snode*)Pact);
+	KeReleaseGuardedMutex(&PMutex);
+
+
+	if (!proc)
 	{
-		KeReleaseGuardedMutex(&PMutex);
 		return;
 	}
 
 
 
-	KeReleaseGuardedMutex(&PMutex);
+	IOtrace* IO = proc->IO;
+	while (IO)
+	{
+		if (shannonEntropy(FltObjects, IO))
+		{
+			proc->highEntropyFiles += 1;
+		}
+		IO = IO->next;
+	}
+
+
+
+	/*This part will allow the change to go through on teh next IRP_MJ_CREATE*/
+	if (proc->trustpoints >= IOThold)
+	{
+		KeAcquireGuardedMutex(&IOMutex);
+		addLastSlist((snode**)&IOact, (snode*)proc->IO);
+		proc->IO = 0;
+		ExFreePool(proc);
+		KeReleaseGuardedMutex(&IOMutex);
+	}
 	return;
 }
 void putProcess(Procmon* p)
@@ -63,11 +99,19 @@ void putProcess(Procmon* p)
 	addLastSlist((snode**)&Pact, (snode*)p);
 	KeReleaseGuardedMutex(&PMutex);
 }
+
+/*
+This is the shannon entropy function seth you can play in here
+*/
 BOOLEAN shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects,IOtrace* IO)
 {
 	UNREFERENCED_PARAMETER(FltObjects);
 	UNREFERENCED_PARAMETER(IO);
-	return TRUE;
+
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "real File shannon Entroy %wZ\n", *IO->realFile));
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shdw File shannon Entroy %wZ\n", *IO->shadowFile));
+
+	return FALSE;
 }
 
 

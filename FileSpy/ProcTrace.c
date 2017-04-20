@@ -2,8 +2,12 @@
 UNICODE_STRING wplist[] = {
 	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\explorer.exe"),
 	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\SearchProtocolHost.exe"),
-	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\SearchIndexer.exe"),
-	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\SearchFilterHost.exe")
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\SearchIndexer.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\SearchFilterHost.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\conhost.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\csrss.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\services.exe"),
+	RTL_CONSTANT_STRING(L"\\Device\\HarddiskVolume1\\Windows\\System32\\svchost.exe")
 };
 BOOLEAN procNameWhiteList(PUNICODE_STRING Name) {
 	unsigned int i = 0;
