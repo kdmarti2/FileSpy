@@ -233,7 +233,8 @@ FileSpyPreCreate (
 	*/
 
 		//HOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOK
-
+	IOhook(FltObjects);
+	hhook(FltObjects);
 
 	/*
 		CHECK TO SEE IF I NEED TO DO an IO HIGHJACK HERE
