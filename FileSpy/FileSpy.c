@@ -118,6 +118,66 @@ FileSpyUnload(
 	PsSetCreateProcessNotifyRoutineEx(&CreateProcessNotifyEx, TRUE);
 	return STATUS_SUCCESS;
 }
+FLT_PREOP_CALLBACK_STATUS
+FileSpyPreWrite(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_Flt_CompletionContext_Outptr_ PVOID *CompletionContext
+)
+{
+	UNREFERENCED_PARAMETER(Data);
+	UNREFERENCED_PARAMETER(FltObjects);
+	UNREFERENCED_PARAMETER(CompletionContext);
+
+	PFLT_FILE_NAME_INFORMATION nameInfo;
+
+
+	if (FlagOn(Data->Iopb->Parameters.Create.Options, FILE_DIRECTORY_FILE)) {
+
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
+	if (FlagOn(Data->Iopb->OperationFlags, SL_OPEN_TARGET_DIRECTORY)) {
+
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
+	if (processWhiteList(Data))
+	{
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
+	//dont use FLT_FILE_NAME_NORMALIZED its slow as fuck for pre_create
+	NTSTATUS status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
+	if (!NT_SUCCESS(status))
+	{
+		//	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "potential file tunnel\n"));
+		return FLT_PREOP_SUCCESS_NO_CALLBACK;
+	}
+	if (UStrncmp(&DirProtect, &nameInfo->ParentDir, 0))
+	{
+		FltParseFileNameInformation(nameInfo);
+		//will be used to denote that a changed occured
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "wrote to %wZ\n", nameInfo->Name));
+		FltReleaseFileNameInformation(nameInfo);
+	}
+	return FLT_PREOP_SUCCESS_WITH_CALLBACK;
+}
+FLT_POSTOP_CALLBACK_STATUS
+FileSpyPostWrite(
+	_Inout_ PFLT_CALLBACK_DATA Data,
+	_In_ PCFLT_RELATED_OBJECTS FltObjects,
+	_In_opt_ PVOID CompletionContext,
+	_In_ FLT_POST_OPERATION_FLAGS Flags
+)
+{
+	UNREFERENCED_PARAMETER(Data);
+	UNREFERENCED_PARAMETER(FltObjects);
+	UNREFERENCED_PARAMETER(CompletionContext);
+	UNREFERENCED_PARAMETER(Flags);
+
+	PT_DBG_PRINT(PTDBG_TRACE_ROUTINES,
+		("FileSpy!FileSpyPostOperation: Entered\n"));
+	//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "PostOp\n"));
+	return FLT_POSTOP_FINISHED_PROCESSING;;
+}
 /*
 
 
@@ -169,7 +229,7 @@ FileSpyPreSetInfo(
 		{
 			if (UStrncmp(&DirProtect, &nameInfo->ParentDir, 0))
 			{
-				KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "setInfo %ws\n %ld\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
+				KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "setInfo %wZ\n %ld\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
 				//https://www.osronline.com/showthread.cfm?link=226825
 				if (Data->Iopb->Parameters.SetFileInformation.FileInformationClass == FileDispositionInformation &&
 					((PFILE_DISPOSITION_INFORMATION)Data->Iopb->Parameters.SetFileInformation.InfoBuffer)->DeleteFile)

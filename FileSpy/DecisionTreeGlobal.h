@@ -7,6 +7,7 @@
 
 typedef struct IOtrace_t {
 	struct IOtrace_t* next;
+	unsigned int action;
 	PUNICODE_STRING realFile;// PUNICDOE_STRING
 	PUNICODE_STRING shadowFile;// PUNICODE_STRING
 } IOtrace;
