@@ -225,7 +225,6 @@ BOOLEAN redirectIO(PCFLT_RELATED_OBJECTS FltObjects,PFLT_CALLBACK_DATA Data, PFL
 				FltClose(OUTHANDLE);
 				PEPROCESS objCurProcess = IoThreadToProcess(Data->Thread);
 				unsigned long long PID = (unsigned long long)PsGetProcessId(objCurProcess);
-				KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Process Node not found creating, %ld creating...\n", PID));
 				if (PID != 4 && PID != 0)
 					recordIO(PID, &nameInfo->Name, &reTarget);
 				/**

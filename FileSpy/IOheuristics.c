@@ -58,13 +58,10 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 	Procmon* proc = (Procmon*)removeSlist((snode**)&Pact, (snode*)Pact);
 	KeReleaseGuardedMutex(&PMutex);
 
-
 	if (!proc)
 	{
 		return;
 	}
-
-
 
 	IOtrace* IO = proc->IO;
 	while (IO)
@@ -75,8 +72,6 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 		}
 		IO = IO->next;
 	}
-
-
 
 	/*This part will allow the change to go through on teh next IRP_MJ_CREATE*/
 	if (proc->trustpoints >= IOThold)
