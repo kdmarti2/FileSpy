@@ -41,6 +41,35 @@ Childproc* createChildNode(unsigned long long PID, Procmon* n)
 	}
 	return 0;
 }
+void updateIO(PUNICODE_STRING sFile, unsigned long long PID)
+{
+	if (!sFile)
+		return;
+
+	if (!PID)
+		return;
+
+	KeAcquireGuardedMutex(&DTMutex);
+
+	Procmon * proc = (Procmon*)findSortSlist((Idsnode**)&ProcessList, PID);
+	if (!proc)
+	{
+		KeReleaseGuardedMutex(&DTMutex);
+		return;
+	}
+	IOtrace* IO = proc->IO;
+	while (IO)
+	{
+		if (RtlEqualUnicodeString(sFile, IO->shadowFile,TRUE))
+		{
+			IO->action = 1; //note that a changed occured
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Write Action recoreded\n", PID));
+			break;
+		}
+		IO = IO->next;
+	}
+	KeReleaseGuardedMutex(&DTMutex);
+}
 //hook located in redirectIO
 void recordIO(unsigned long long PID,PUNICODE_STRING realFile, PUNICODE_STRING shadowFile)
 {

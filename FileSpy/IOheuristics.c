@@ -115,6 +115,36 @@ void overWriteFile(PCFLT_RELATED_OBJECTS FltObjects,PUNICODE_STRING rFile, PUNIC
 	FltClose(SHANDLE);
 	FltClose(RHANDLE);
 }
+void deleteFile(PCFLT_RELATED_OBJECTS FltObjects, PUNICODE_STRING sFile)
+{
+	OBJECT_ATTRIBUTES objATT;
+	HANDLE SHANDLE;
+	IO_STATUS_BLOCK ioStatusBlock;
+	NTSTATUS status;
+	PFILE_OBJECT sFileObject;
+
+	InitializeObjectAttributes(&objATT, sFile, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 0, 0);
+	status = FltCreateFileEx(
+		FltObjects->Filter,
+		FltObjects->Instance,
+		&SHANDLE,
+		&sFileObject,
+		FILE_READ_DATA | DELETE,
+		&objATT,
+		&ioStatusBlock,
+		(PLARGE_INTEGER)NULL,
+		FILE_ATTRIBUTE_NORMAL,
+		FILE_SHARE_READ,
+		FILE_OPEN,
+		FILE_DELETE_ON_CLOSE,
+		NULL,
+		0,
+		IO_IGNORE_SHARE_ACCESS_CHECK
+	);
+
+	if (NT_SUCCESS(status))
+		FltClose(SHANDLE);
+}
 void IOhook(PCFLT_RELATED_OBJECTS FltObjects)
 {
 	KeAcquireGuardedMutex(&IOMutex);
@@ -129,7 +159,10 @@ void IOhook(PCFLT_RELATED_OBJECTS FltObjects)
 		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "change real File %wZ\n", *IO->realFile));
 		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "change shdw File %wZ\n", *IO->shadowFile));
 
-		overWriteFile(FltObjects, IO->realFile, IO->shadowFile);
+		if (IO->action)
+			overWriteFile(FltObjects, IO->realFile, IO->shadowFile);
+		else
+			deleteFile(FltObjects, IO->shadowFile);
 
 		ExFreePool(IO->realFile->Buffer);
 		ExFreePool(IO->shadowFile->Buffer);
@@ -166,10 +199,8 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 	IOtrace* IO = proc->IO;
 	while (IO)
 	{
-		if (shannonEntropy(FltObjects, IO))
-		{
-			proc->highEntropyFiles += 1;
-		}
+		shannonEntropy(FltObjects, IO->realFile);
+		shannonEntropy(FltObjects, IO->shadowFile);
 		IO = IO->next;
 	}
 
@@ -197,16 +228,104 @@ void putProcess(Procmon* p)
 
 /*
 This is the shannon entropy function seth you can play in here
+//http://stackoverflow.com/questions/25985005/calculating-entropy-in-c
 */
-BOOLEAN shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects,IOtrace* IO)
+//estimation of a log function
+int log2f(int num)
 {
-	UNREFERENCED_PARAMETER(FltObjects);
-	UNREFERENCED_PARAMETER(IO);
+	return num;
+}
+int shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects,PUNICODE_STRING f)
+{
+	int avg_entropy = 0;
+	int rep = 0;
+	OBJECT_ATTRIBUTES objATT;
+	HANDLE FHANDLE;
+	IO_STATUS_BLOCK ioStatusBlock;
+	NTSTATUS status;
+	PFILE_OBJECT fFileObject;
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shannon Entroy %wZ\n", *f));
+	InitializeObjectAttributes(&objATT, f, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 0, 0);
+	status = FltCreateFileEx(
+		FltObjects->Filter,
+		FltObjects->Instance,
+		&FHANDLE,
+		&fFileObject,
+		FILE_READ_DATA,
+		&objATT,
+		&ioStatusBlock,
+		(PLARGE_INTEGER)NULL,
+		FILE_ATTRIBUTE_NORMAL,
+		FILE_SHARE_READ,
+		FILE_OPEN,
+		0,
+		NULL,
+		0,
+		IO_IGNORE_SHARE_ACCESS_CHECK
+	);
 
-	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "real File shannon Entroy %wZ\n", *IO->realFile));
-	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shdw File shannon Entroy %wZ\n", *IO->shadowFile));
+	if (!NT_SUCCESS(status))
+		return -1;
+	// do math
 
-	return FALSE;
+	unsigned char* buf = FltAllocatePoolAlignedWithTag(FltObjects->Instance, NonPagedPool, 1024, 'shen');
+	LARGE_INTEGER Pos;
+	Pos.HighPart = 0;
+	Pos.LowPart = 0;
+	LARGE_INTEGER oldPos;
+	oldPos.HighPart = 0;
+	oldPos.LowPart = 0;
+	ULONG readBytes = 0;
+	do {
+		NTSTATUS s = STATUS_SUCCESS;
+		readBytes = 0;
+		s = FltReadFile(
+			FltObjects->Instance,
+			fFileObject,
+			&Pos,
+			1024,
+			buf,
+			FLTFL_IO_OPERATION_NON_CACHED,
+			&readBytes,
+			0,
+			0
+		);
+		Pos.QuadPart += readBytes;
+		FltWriteFile(
+			FltObjects->Instance,
+			fFileObject,
+			&oldPos,
+			readBytes,
+			buf,
+			FLTFL_IO_OPERATION_NON_CACHED,
+			0,
+			0,
+			0
+		);
+		oldPos.QuadPart += readBytes;
+
+		//Entropy
+		/*
+		http://stackoverflow.com/questions/25985005/calculating-entropy-in-c
+		ULONG i = 0;
+		int count =0.0;
+		int entropy = 0.0;
+		for(i = 0;i < readBytes;i++)
+		{
+			if (buf[i])
+			{
+				count = buf[i] / readBytes;
+				entropy += -count * log2f(count);
+			}
+		}
+		avg_entropy += entropy;
+		rep++; */
+		RtlZeroMemory(buf, 1024);
+	} while (readBytes);
+	FltFreePoolAlignedWithTag(FltObjects->Instance, buf, 'shen');
+	FltClose(FHANDLE);
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shannon Entroy result %ld\n", avg_entropy / rep));
+	return 0;
 }
 
 

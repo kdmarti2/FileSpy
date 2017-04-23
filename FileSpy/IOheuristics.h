@@ -19,7 +19,6 @@ void initIOheuristics();
 void IOhook(PCFLT_RELATED_OBJECTS FltObjects);
 void hhook(PCFLT_RELATED_OBJECTS FltObjects);
 void putProcess(Procmon* p);
-BOOLEAN shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects, IOtrace* IO);
-
+int shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects, PUNICODE_STRING f);
 
 #endif

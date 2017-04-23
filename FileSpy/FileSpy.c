@@ -154,8 +154,13 @@ FileSpyPreWrite(
 	if (UStrncmp(&DirProtect, &nameInfo->ParentDir, 0))
 	{
 		FltParseFileNameInformation(nameInfo);
-		//will be used to denote that a changed occured
-		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "wrote to %wZ\n", nameInfo->Name));
+		PEPROCESS objCurProcess = IoThreadToProcess(Data->Thread);
+		unsigned long long PID = (unsigned long long)PsGetProcessId(objCurProcess);
+		if (PID != 4 && PID != 0)
+		{
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "wrote to %wZ\n", nameInfo->Name));
+			updateIO(&nameInfo->Name, PID);
+		}
 		FltReleaseFileNameInformation(nameInfo);
 	}
 	return FLT_PREOP_SUCCESS_WITH_CALLBACK;
@@ -229,27 +234,27 @@ FileSpyPreSetInfo(
 		{
 			if (UStrncmp(&DirProtect, &nameInfo->ParentDir, 0))
 			{
-				KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "setInfo %wZ\n %ld\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
+				//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "setInfo %wZ\n %ld\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
 				//https://www.osronline.com/showthread.cfm?link=226825
 				if (Data->Iopb->Parameters.SetFileInformation.FileInformationClass == FileDispositionInformation &&
 					((PFILE_DISPOSITION_INFORMATION)Data->Iopb->Parameters.SetFileInformation.InfoBuffer)->DeleteFile)
 				{
-					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "File Delete %wZ %d\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
+					//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "File Delete %wZ %d\n", nameInfo->Name, Data->Iopb->Parameters.SetFileInformation.FileInformationClass));
 					//just report that an attempt to delete happend
 					//will delete its own shadow copy lol
 				}
 				else if (Data->Iopb->Parameters.SetFileInformation.FileInformationClass == FileRenameInformation)
 				{
 					PFILE_RENAME_INFORMATION fri = (PFILE_RENAME_INFORMATION)Data->Iopb->Parameters.SetFileInformation.InfoBuffer;
-					KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Compared against %ws\n", wbin));
+					//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Compared against %ws\n", wbin));
 					if (WCStrncmp(wbin, fri->FileName, 20))
 					{
-						KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Deleted %ws\n %ws\n", fri->FileName, fri->RootDirectory));
+					//	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Deleted %ws\n %ws\n", fri->FileName, fri->RootDirectory));
 						//just report that an attempt to delete happend
 						//will delete its own shadow copy lol
 					}
 					else {
-						KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Moved %ws\n %ws\n", fri->FileName, fri->RootDirectory));
+					//	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x08, "Moved %ws\n %ws\n", fri->FileName, fri->RootDirectory));
 						//touched
 					}
 				}
