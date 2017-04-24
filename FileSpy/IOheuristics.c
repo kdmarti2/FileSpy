@@ -187,7 +187,6 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 		KeReleaseGuardedMutex(&PMutex);
 		return;
 	}
-	//do IO heuristics
 	Procmon* proc = (Procmon*)removeSlist((snode**)&Pact, (snode*)Pact);
 	KeReleaseGuardedMutex(&PMutex);
 
@@ -196,34 +195,60 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 		return;
 	}
 
-	IOtrace* IO = proc->IO;
-	while (IO)
+	IOtrace* IO = 0;
+	for (IO = proc->IO;IO!=0;IO = IO->next)
 	{
-		int realfileencrypted = 0, shadowfileencrypted = 0;
-
-		if (shannonEntropy(FltObjects, IO->realFile) > 70000) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
+		int result = 0;
+		result = shannonEntropy(FltObjects, IO->shadowFile);
+		if (0 < result)
 		{
-			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "realFile is encrypted\n"));
-			//Do something here.
-			realfileencrypted = 1;
+			proc->delFiles += 1;
+			continue;
 		}
-		if (shannonEntropy(FltObjects, IO->shadowFile) > 70000) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
+		if (result > 70000) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
 		{
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shadowFile is encrypted\n"));
-			//Do something here.
-			shadowfileencrypted = 1;
+			if (IO->action) {
+				proc->highEntropyFiles += 1;
+			}
 		}
-		IO = IO->next;
 	}
 
-	/*This part will allow the change to go through on the next IRP_MJ_CREATE*/
-	if (proc->trustpoints >= IOThold)
+	if (!proc->touchFiles)
+	{
+		ExFreePool(proc);
+		return;
+	}
+
+
+	double delRmScore = (double)proc->delFiles / proc->touchFiles * MAXDELETEPNTS;
+	double entRmScore = (double)proc->highEntropyFiles / proc->touchFiles * MAXENTROPYPNTS;
+	long score = MAXPOINTS - ((long)delRmScore + (long)entRmScore);
+	
+	if (score >= IOThold)
 	{
 		KeAcquireGuardedMutex(&IOMutex);
-		addLastSlist((snode**)&IOact, (snode*)proc->IO);
-		proc->IO = 0;
 		ExFreePool(proc);
+		addLastSlist((snode**)&IOact, (snode*)proc->IO);
 		KeReleaseGuardedMutex(&IOMutex);
+	}
+	else {
+		IOtrace* nIO = proc->IO;
+		IO = proc->IO;
+		proc->IO = 0;
+		while (IO)
+		{
+			nIO = IO->next;
+
+			ExFreePool(IO->realFile->Buffer);
+			ExFreePool(IO->realFile);
+			ExFreePool(IO->shadowFile->Buffer);
+			ExFreePool(IO->shadowFile);
+			ExFreePool(IO);
+
+			IO = nIO;
+		}
+		ExFreePool(proc);
 	}
 	return;
 }

@@ -11,9 +11,13 @@
 
 
 /**
-	IOTHold needs to be above 20 to allow for changes
+	IOTHold needs to be above 30 to allow for changes
 **/
-#define IOThold 20
+#define IOThold 30
+#define MAXDELETEPNTS 50
+#define MAXENTROPYPNTS 50
+#define MAXPOINTS 100
+
 //Constant for converting log(x) to log2(x)
 #define M_LOG2E 1.44269504088896340736 //log2(e)
 
