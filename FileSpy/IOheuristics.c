@@ -2,7 +2,7 @@
 
 Procmon* Pact; // contains all the process to test
 IOtrace* IOact; //contains all the list of the trace IO need to apply
-
+int _fltused;
 KGUARDED_MUTEX IOMutex;
 KGUARDED_MUTEX PMutex;
 /*
@@ -199,12 +199,24 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 	IOtrace* IO = proc->IO;
 	while (IO)
 	{
-		shannonEntropy(FltObjects, IO->realFile);
-		shannonEntropy(FltObjects, IO->shadowFile);
+		int realfileencrypted = 0, shadowfileencrypted = 0;
+
+		if (shannonEntropy(FltObjects, IO->realFile) > 70000) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
+		{
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "realFile is encrypted\n"));
+			//Do something here.
+			realfileencrypted = 1;
+		}
+		if (shannonEntropy(FltObjects, IO->shadowFile) > 70000) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
+		{
+			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shadowFile is encrypted\n"));
+			//Do something here.
+			shadowfileencrypted = 1;
+		}
 		IO = IO->next;
 	}
 
-	/*This part will allow the change to go through on teh next IRP_MJ_CREATE*/
+	/*This part will allow the change to go through on the next IRP_MJ_CREATE*/
 	if (proc->trustpoints >= IOThold)
 	{
 		KeAcquireGuardedMutex(&IOMutex);
@@ -237,8 +249,13 @@ int log2f(int num)
 }
 int shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects,PUNICODE_STRING f)
 {
-	int avg_entropy = 0;
-	int rep = 0;
+	double byte_count[256];
+	ULONG i = 0;
+	double count = 0.0;
+	double entropy = 0.0;
+	int length = 0;
+
+
 	OBJECT_ATTRIBUTES objATT;
 	HANDLE FHANDLE;
 	IO_STATUS_BLOCK ioStatusBlock;
@@ -276,6 +293,12 @@ int shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects,PUNICODE_STRING f)
 	oldPos.HighPart = 0;
 	oldPos.LowPart = 0;
 	ULONG readBytes = 0;
+	//RtlZeroMemory(byte_count, 256);
+	for (i = 0; i < 256; i++)
+	{
+		byte_count[i] = 0.0;
+		//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Print Shannon Entroy cleared byte_count[%ld]: %ld\n", i, byte_count[i])); //Test to see if buffer being cleared properly
+	}
 	do {
 		NTSTATUS s = STATUS_SUCCESS;
 		readBytes = 0;
@@ -291,42 +314,76 @@ int shannonEntropy(PCFLT_RELATED_OBJECTS FltObjects,PUNICODE_STRING f)
 			0
 		);
 		Pos.QuadPart += readBytes;
-		FltWriteFile(
-			FltObjects->Instance,
-			fFileObject,
-			&oldPos,
-			readBytes,
-			buf,
-			FLTFL_IO_OPERATION_NON_CACHED,
-			0,
-			0,
-			0
-		);
-		oldPos.QuadPart += readBytes;
-
-		//Entropy
-		/*
-		http://stackoverflow.com/questions/25985005/calculating-entropy-in-c
-		ULONG i = 0;
-		int count =0.0;
-		int entropy = 0.0;
-		for(i = 0;i < readBytes;i++)
+		//Read in byte & store # of each byte
+		//http://stackoverflow.com/questions/25985005/calculating-entropy-in-c
+		//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Print Shannon Entroy readBytes: %ld\n", readBytes)); //Test to see if reading from real file
+		for (i = 0; i < readBytes; i++)
 		{
-			if (buf[i])
-			{
-				count = buf[i] / readBytes;
-				entropy += -count * log2f(count);
-			}
+			byte_count[(int)buf[i]]++;
+			length++;
+			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Print Shannon Entroy (int)buf[i]: %ld\n", (int)buf[i])); //Check what's actually going in to byte_count
 		}
-		avg_entropy += entropy;
-		rep++; */
 		RtlZeroMemory(buf, 1024);
 	} while (readBytes);
+	
+	//Calculate entropy, should match the given algorithm now (tested algorithm on another machine)
+	for (i = 0; i < 256; i++)
+	{
+		if ((byte_count[i] != 0.0) && (length != 0))
+		{
+			count = (double) byte_count[i] / (double) length;
+			entropy += -count * log2(count);
+			//KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Print Shannon Entroy math: i = %ld; byte_count[i] = %ld; length = %ld; count %ld; entropy %ld\n", i, (int)byte_count[i], length, (int)count, (int)entropy));
+		}
+	}
 	FltFreePoolAlignedWithTag(FltObjects->Instance, buf, 'shen');
 	FltClose(FHANDLE);
-	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shannon Entroy result %ld\n", avg_entropy / rep));
-	return 0;
+	entropy = entropy * 10000; //Basically move decimal places over so they can be seen as ints
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Shannon Entroy result %ld\n", (int)entropy));
+	return (int)entropy;
+}
+
+double log2(double value) {
+	return ln(value) * M_LOG2E;
 }
 
 
+double ln(double value) {
+	short reciprocal = 0;
+	double x = 0;
 
+	if (value > 2.0) {// Utilize ln(x) = -ln(1/x) for accuracy
+		value = 1 / value;
+		reciprocal = 1;
+	}
+	x = approx_log(value);
+
+	if (reciprocal) { //Correct for the ln(1/x) = -ln(x)
+		x = x * -1;
+	}
+	return x;
+}
+
+double power(double x, int exp) {
+	int counter = exp;
+	double result = x;
+	if (exp == 0) { //x^0 = 1
+		return 1;
+	}
+	while (counter > 1) { //Do exponentiation
+		result = result*x;
+		counter--;
+	}
+	return result;
+}
+
+double approx_log(double x) {
+
+	double result = 0;
+	int count = 1;
+	while (count < 1000) { //The constant 1000 is a "precision" indicator, maybe change if a performance hit?
+		result += power(-1, count + 1) * (power((x - 1), count) / count);
+		count++;
+	}
+	return result;
+}
