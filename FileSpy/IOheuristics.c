@@ -178,9 +178,6 @@ void IOhook(PCFLT_RELATED_OBJECTS FltObjects)
 }
 void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 {
-	UNREFERENCED_PARAMETER(FltObjects);
-	//do one process at a time 
-
 	KeAcquireGuardedMutex(&PMutex);
 	if (!Pact)
 	{
@@ -200,12 +197,12 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 	{
 		int result = 0;
 		result = shannonEntropy(FltObjects, IO->shadowFile);
-		if (0 < result)
+		if (0 > result)
 		{
 			proc->delFiles += 1;
 			continue;
 		}
-		if (result > 70000) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
+		if (result >= ENCRYPTTHOLD) //Checks for entropy to be above 7. In quick/informal testing this indicates encryption
 		{
 			KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "shadowFile is encrypted\n"));
 			if (IO->action) {
@@ -216,6 +213,7 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 
 	if (!proc->touchFiles)
 	{
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "no touched files\n"));
 		ExFreePool(proc);
 		return;
 	}
@@ -225,6 +223,8 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 	double entRmScore = (double)proc->highEntropyFiles / proc->touchFiles * MAXENTROPYPNTS;
 	long score = MAXPOINTS - ((long)delRmScore + (long)entRmScore);
 	
+	KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "delScore %ld\n entRmScore %ld\n score %ld\n",(long)delRmScore,(long)entRmScore,(long)score));
+
 	if (score >= IOThold)
 	{
 		KeAcquireGuardedMutex(&IOMutex);
@@ -233,6 +233,7 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 		KeReleaseGuardedMutex(&IOMutex);
 	}
 	else {
+		KdPrintEx((DPFLTR_IHVDRIVER_ID, 0x8, "Malicious Node Detected!!\n"));
 		IOtrace* nIO = proc->IO;
 		IO = proc->IO;
 		proc->IO = 0;
@@ -240,8 +241,12 @@ void hhook(PCFLT_RELATED_OBJECTS FltObjects)
 		{
 			nIO = IO->next;
 
+
 			ExFreePool(IO->realFile->Buffer);
 			ExFreePool(IO->realFile);
+
+			deleteFile(FltObjects, IO->shadowFile);
+
 			ExFreePool(IO->shadowFile->Buffer);
 			ExFreePool(IO->shadowFile);
 			ExFreePool(IO);
